@@ -4,7 +4,7 @@
 
 The output is a multipage **Streamlit** dashboard that walks through the squad's gaps, the scoring method, and a value-band × area shortlist with role-relative radars.
 
-> **Live demo:** _add your deployed URL here once it's live (e.g. Streamlit Community Cloud)._
+> **Live demo:** [Real Madrid Scouting](https://data-driven-rm-scouting.streamlit.app/)
 
 ---
 
