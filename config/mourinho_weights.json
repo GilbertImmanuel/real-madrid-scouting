@@ -1,0 +1,182 @@
+{
+  "_schema_version": "1.0",
+  "_author": "EDIT_ME",
+  "_created": "2026-06-06",
+  "_data_window": "2020-21, 2021-22, 2022-23  (Big 5, worldfootballR frozen snapshot)",
+
+  "_about": [
+    "This file IS the Mourinho archetype. It is a hypothesis you author by hand from his",
+    "tactical identity, NOT something mined from his squads. Authoring it before you see the",
+    "rankings is what keeps you honest. NB3 loads this; NB4 scores every candidate against it.",
+    "Per role, each metric gets a weight; weights within a role sum to 1.0."
+  ],
+
+  "_how_scoring_works": [
+    "1. Build the player pool (NB1) with one row per (player, season) and all stat tables joined.",
+    "2. For each candidate, pick their role via '_position_map' (see below).",
+    "3. For every metric in that role: percentile-rank the player's value within the SAME-role pool",
+    "   (0-100). Use the player's 3-season average of the per-90 value before ranking.",
+    "4. Composite = sum(weight * percentile). If a metric is NaN for a player, drop it and",
+    "   rescale that role's remaining weights to sum to 1.0 (your existing NaN policy).",
+    "5. direction='low' metrics are reverse-percentiled (lower raw value = higher percentile)."
+  ],
+
+  "_how_to_edit": [
+    "Change any 'weight'. Keep each role's weights summing to ~1.0 (a helper can re-normalise).",
+    "Add a metric by copying a block; 'column' must match the FBref column EXACTLY, including",
+    "spaces and '+' (e.g. 'Mid 3rd_Tackles', 'Tkl+Int'). 'table' tells the loader which parquet",
+    "file the column lives in. Set 'per90': true for raw counts, false for rates already on a",
+    "per-90 or percentage basis (the *_Per and *90_* columns, and *_percent_* columns)."
+  ],
+
+  "_considerations": [
+    "PRESSURES: 'Press_Pressures' and 'Att 3rd_Pressures' are 100% populated for 2020-21 and",
+    "2021-22 but 0% for 2022-23 (Opta dropped them). They are left OUT of the defaults so your",
+    "3-season composite stays consistent. To add them, see '_optional_metrics' and accept that",
+    "they become a 2-season signal handled by NaN-rescaling.",
+    "AERIAL%: ~10% NaN are players with zero aerial duels (mostly wide/low-minute). Fine after the",
+    "minutes filter; for a CB a NaN here is a red flag worth inspecting.",
+    "ROLES vs FBREF POS: FBref 'Pos' only gives DF/MF/FW. The granular roles below need a finer",
+    "position, which Transfermarkt's 'sub_position' (already in dcaribou) provides. Map via",
+    "'_position_map'. If you skip enrichment, use '_coarse_fallback' (less meaningful).",
+    "PENALTIES: striker uses npxG_Per (penalty-stripped) so a penalty-taker isn't flattered."
+  ],
+
+  "_position_map": {
+    "_source": "Transfermarkt sub_position (dcaribou players.csv) -> role",
+    "Centre-Back": "center_back",
+    "Left-Back": "full_back",
+    "Right-Back": "full_back",
+    "Defensive Midfield": "defensive_mid",
+    "Central Midfield": "central_mid",
+    "Left Midfield": "central_mid",
+    "Right Midfield": "central_mid",
+    "Attacking Midfield": "wide_attacker",
+    "Left Winger": "wide_attacker",
+    "Right Winger": "wide_attacker",
+    "Second Striker": "wide_attacker",
+    "Centre-Forward": "striker",
+    "Goalkeeper": "EXCLUDE"
+  },
+
+  "_coarse_fallback": {
+    "_note": "Used only if you do NOT enrich position from Transfermarkt. Maps FBref primary Pos.",
+    "DF": "center_back",
+    "MF": "central_mid",
+    "FW": "striker",
+    "GK": "EXCLUDE"
+  },
+
+  "_optional_metrics": {
+    "_note": "Copy any of these INTO a role's 'metrics' and re-balance weights if you want them.",
+    "pressures_total": {"column": "Press_Pressures", "table": "defense", "per90": true, "direction": "high"},
+    "att_third_pressures": {"column": "Att 3rd_Pressures", "table": "defense", "per90": true, "direction": "high"},
+    "tackle_success_pct": {"column": "Tkl_percent_Vs", "table": "defense", "per90": false, "direction": "high"},
+    "dispossessed": {"column": "Dis_Carries", "table": "possession", "per90": true, "direction": "low"}
+  },
+
+  "global": {
+    "per90_default": true,
+    "min_minutes_note": "Percentile only within players past your Tier minutes filter; tiny-minute outliers distort tails.",
+    "nan_policy": "drop metric for that player, rescale role weights to sum to 1.0"
+  },
+
+  "roles": {
+
+    "center_back": {
+      "_rationale": "Mourinho's non-negotiable: aerial dominance, reads danger, clears, safe on the ball. Progression is a bonus, never the priority.",
+      "metrics": {
+        "aerial_win_pct":        {"column": "Won_percent_Aerial", "table": "misc",       "weight": 0.20, "per90": false, "direction": "high"},
+        "aerials_won":           {"column": "Won_Aerial",         "table": "misc",       "weight": 0.10, "per90": true,  "direction": "high"},
+        "interceptions":         {"column": "Int",                "table": "defense",    "weight": 0.15, "per90": true,  "direction": "high"},
+        "clearances":            {"column": "Clr",                "table": "defense",    "weight": 0.12, "per90": true,  "direction": "high"},
+        "tackles_plus_int":      {"column": "Tkl+Int",            "table": "defense",    "weight": 0.12, "per90": true,  "direction": "high"},
+        "blocks":                {"column": "Blocks_Blocks",      "table": "defense",    "weight": 0.08, "per90": true,  "direction": "high"},
+        "pass_completion":       {"column": "Cmp_percent_Total",  "table": "passing",    "weight": 0.10, "per90": false, "direction": "high"},
+        "progressive_passes":    {"column": "Prog",               "table": "passing",    "weight": 0.08, "per90": true,  "direction": "high"},
+        "errors":                {"column": "Err",                "table": "defense",    "weight": 0.05, "per90": true,  "direction": "low"}
+      }
+    },
+
+    "full_back": {
+      "_rationale": "Defends first (Mourinho fullbacks are not flying wing-backs), but supplies width and final-third delivery. Discipline over adventure.",
+      "metrics": {
+        "tackles_won":           {"column": "TklW_Tackles",       "table": "defense",    "weight": 0.12, "per90": true,  "direction": "high"},
+        "interceptions":         {"column": "Int",                "table": "defense",    "weight": 0.12, "per90": true,  "direction": "high"},
+        "tackles_plus_int":      {"column": "Tkl+Int",            "table": "defense",    "weight": 0.10, "per90": true,  "direction": "high"},
+        "crosses_into_pen_area": {"column": "CrsPA",              "table": "passing",    "weight": 0.12, "per90": true,  "direction": "high"},
+        "passes_into_final_3rd": {"column": "Final_Third",        "table": "passing",    "weight": 0.10, "per90": true,  "direction": "high"},
+        "progressive_carries":   {"column": "Prog_Carries",       "table": "possession", "weight": 0.10, "per90": true,  "direction": "high"},
+        "prog_passes_received":  {"column": "Prog_Receiving",     "table": "possession", "weight": 0.08, "per90": true,  "direction": "high"},
+        "aerial_win_pct":        {"column": "Won_percent_Aerial", "table": "misc",       "weight": 0.08, "per90": false, "direction": "high"},
+        "recoveries":            {"column": "Recov",              "table": "misc",       "weight": 0.07, "per90": true,  "direction": "high"},
+        "blocks":                {"column": "Blocks_Blocks",      "table": "defense",    "weight": 0.06, "per90": true,  "direction": "high"},
+        "pass_completion":       {"column": "Cmp_percent_Total",  "table": "passing",    "weight": 0.05, "per90": false, "direction": "high"}
+      }
+    },
+
+    "defensive_mid": {
+      "_rationale": "The screen in front of the back four. Destroyer + secure distributor. Almost no end-product weight.",
+      "metrics": {
+        "tackles_plus_int":      {"column": "Tkl+Int",            "table": "defense",    "weight": 0.18, "per90": true,  "direction": "high"},
+        "interceptions":         {"column": "Int",                "table": "defense",    "weight": 0.12, "per90": true,  "direction": "high"},
+        "recoveries":            {"column": "Recov",              "table": "misc",       "weight": 0.12, "per90": true,  "direction": "high"},
+        "pass_completion":       {"column": "Cmp_percent_Total",  "table": "passing",    "weight": 0.12, "per90": false, "direction": "high"},
+        "tackles_mid_third":     {"column": "Mid 3rd_Tackles",    "table": "defense",    "weight": 0.10, "per90": true,  "direction": "high"},
+        "progressive_passes":    {"column": "Prog",               "table": "passing",    "weight": 0.10, "per90": true,  "direction": "high"},
+        "blocks":                {"column": "Blocks_Blocks",      "table": "defense",    "weight": 0.08, "per90": true,  "direction": "high"},
+        "aerial_win_pct":        {"column": "Won_percent_Aerial", "table": "misc",       "weight": 0.08, "per90": false, "direction": "high"},
+        "clearances":            {"column": "Clr",                "table": "defense",    "weight": 0.05, "per90": true,  "direction": "high"},
+        "miscontrols":           {"column": "Mis_Carries",        "table": "possession", "weight": 0.05, "per90": true,  "direction": "low"}
+      }
+    },
+
+    "central_mid": {
+      "_rationale": "Box-to-box: defensive work plus progression plus a measure of creation. The most balanced profile.",
+      "metrics": {
+        "progressive_passes":    {"column": "Prog",               "table": "passing",    "weight": 0.14, "per90": true,  "direction": "high"},
+        "tackles_plus_int":      {"column": "Tkl+Int",            "table": "defense",    "weight": 0.12, "per90": true,  "direction": "high"},
+        "progressive_carries":   {"column": "Prog_Carries",       "table": "possession", "weight": 0.12, "per90": true,  "direction": "high"},
+        "recoveries":            {"column": "Recov",              "table": "misc",       "weight": 0.10, "per90": true,  "direction": "high"},
+        "passes_into_final_3rd": {"column": "Final_Third",        "table": "passing",    "weight": 0.10, "per90": true,  "direction": "high"},
+        "key_passes":            {"column": "KP",                 "table": "passing",    "weight": 0.10, "per90": true,  "direction": "high"},
+        "expected_assists":      {"column": "xAG_Per",            "table": "standard",   "weight": 0.10, "per90": false, "direction": "high"},
+        "shot_creating_actions": {"column": "SCA90_SCA",          "table": "gca",        "weight": 0.10, "per90": false, "direction": "high"},
+        "pass_completion":       {"column": "Cmp_percent_Total",  "table": "passing",    "weight": 0.07, "per90": false, "direction": "high"},
+        "prog_passes_received":  {"column": "Prog_Receiving",     "table": "possession", "weight": 0.05, "per90": true,  "direction": "high"}
+      }
+    },
+
+    "wide_attacker": {
+      "_rationale": "Winger / attacking mid. End product and transition threat, but Mourinho demands they track back, so defensive work carries real weight here.",
+      "metrics": {
+        "non_pen_xg":            {"column": "npxG_Per",           "table": "standard",   "weight": 0.14, "per90": false, "direction": "high"},
+        "expected_assists":      {"column": "xAG_Per",            "table": "standard",   "weight": 0.12, "per90": false, "direction": "high"},
+        "shot_creating_actions": {"column": "SCA90_SCA",          "table": "gca",        "weight": 0.12, "per90": false, "direction": "high"},
+        "tackles_plus_int":      {"column": "Tkl+Int",            "table": "defense",    "weight": 0.10, "per90": true,  "direction": "high"},
+        "successful_dribbles":   {"column": "Succ_Dribbles",      "table": "possession", "weight": 0.10, "per90": true,  "direction": "high"},
+        "progressive_carries":   {"column": "Prog_Carries",       "table": "possession", "weight": 0.10, "per90": true,  "direction": "high"},
+        "key_passes":            {"column": "KP",                 "table": "passing",    "weight": 0.08, "per90": true,  "direction": "high"},
+        "carries_into_final_3rd":{"column": "Final_Third_Carries","table": "possession", "weight": 0.08, "per90": true,  "direction": "high"},
+        "prog_passes_received":  {"column": "Prog_Receiving",     "table": "possession", "weight": 0.08, "per90": true,  "direction": "high"},
+        "recoveries":            {"column": "Recov",              "table": "misc",       "weight": 0.08, "per90": true,  "direction": "high"}
+      }
+    },
+
+    "striker": {
+      "_rationale": "Clinical, physical focal point. Goals first, but aerial presence, link play and front-foot pressing matter to Mourinho.",
+      "metrics": {
+        "non_pen_xg":            {"column": "npxG_Per",           "table": "standard",   "weight": 0.25, "per90": false, "direction": "high"},
+        "non_pen_goals":         {"column": "G_minus_PK_Per",     "table": "standard",   "weight": 0.12, "per90": false, "direction": "high"},
+        "aerial_win_pct":        {"column": "Won_percent_Aerial", "table": "misc",       "weight": 0.13, "per90": false, "direction": "high"},
+        "goal_creating_actions": {"column": "GCA90_GCA",          "table": "gca",        "weight": 0.10, "per90": false, "direction": "high"},
+        "shot_creating_actions": {"column": "SCA90_SCA",          "table": "gca",        "weight": 0.08, "per90": false, "direction": "high"},
+        "expected_assists":      {"column": "xAG_Per",            "table": "standard",   "weight": 0.09, "per90": false, "direction": "high"},
+        "aerials_won":           {"column": "Won_Aerial",         "table": "misc",       "weight": 0.08, "per90": true,  "direction": "high"},
+        "prog_passes_received":  {"column": "Prog_Receiving",     "table": "possession", "weight": 0.08, "per90": true,  "direction": "high"},
+        "touches_in_box":        {"column": "Att Pen_Touches",    "table": "possession", "weight": 0.07, "per90": true,  "direction": "high"}
+      }
+    }
+
+  }
+}
