@@ -1,0 +1,10 @@
+band,role,Player,Squad,age_snap,valM,mourinho_score,lead_target
+marquee,striker,Erling Haaland,Dortmund,22.0,200.0,83.72727272727276,True
+marquee,defensive_mid,Rodri,Manchester City,26.0,130.0,60.193548387096776,False
+marquee,full_back,Alphonso Davies,Bayern Munich,22.0,80.0,79.62608695652175,True
+mid,striker,André Silva,Eint Frankfurt,26.0,45.0,74.57142857142858,False
+mid,defensive_mid,Wilfred Ndidi,Leicester City,25.0,60.0,78.51612903225806,True
+mid,full_back,Aaron Wan-Bissaka,Manchester Utd,24.0,40.0,67.33913043478262,False
+bargain,striker,Terem Moffi,Lorient,23.0,25.0,45.40259740259741,False
+bargain,defensive_mid,Diadie Samassékou,Hoffenheim,26.0,20.0,65.38709677419357,False
+bargain,full_back,Fabien Centonze,Metz,26.0,8.0,68.69565217391303,False
